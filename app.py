@@ -59,7 +59,10 @@ class Slice():
         self.slice = slice_array
         self.cells = self.CountCells()
         self.tomatos,self.mushrooms = self.CountIngs()
+        self.nan = self.CountNan()
 
+    def CountNan(self):
+        return np.isnan(self.slice).sum()
 
     def CountIngs(self):
         return self.slice.sum(),self.cells - self.slice.sum()
@@ -97,12 +100,15 @@ class Pizzaiolo():
         tomatos = Slice.tomatos
         mushrooms = Slice.mushrooms
         cells = Slice.cells
-        dico_bool =  {"min_ings":False , "max_cells":False}
+        nan = Slice.nan
+        dico_bool =  {"min_ings":False , "max_cells":False, "nan":False}
         if tomatos <= self.min_ings and mushrooms <= self.min_ings:
             dico_bool["min_ings"] = True
         if cells <= self.max_cells:
             dico_bool["max_cells"] = True
-        if dico_bool["min_ings"] and  dico_bool["max_cells"]:
+        if nan == 0:
+            dico_bool["nan"] = True
+        if dico_bool["min_ings"] and dico_bool["max_cells"] and dico_bool["nan"]:
             response = True
         else:
             response = False
@@ -116,6 +122,7 @@ class Pizzaiolo():
         new_slice = Slice(row_start, col_start, row_end, col_end,slice_array)
         for row in range(new_slice.row_start, new_slice.row_end + 1):
             for col in range(new_slice.col_start, new_slice.col_end + 1):
+                print(self.Pizza.pizza)
                 self.Pizza.pizza[row, col] = np.nan
         return new_slice
 
@@ -129,18 +136,33 @@ class Pizzaiolo():
     def MakeSlices(self):
         pizza = self.Pizza.pizza
 
-        for row in range(self.Pizza.width):
-            for col in range(self.Pizza.height):
-                if pizza[row, col] == self.key_min:
-                    pass
-                row_start = 1
-                row_end = 3
-                col_start = 2
-                col_end = 5
-                slice_array = np.array([[1, 2, 3], [4, 5, 6]], np.int32)
-                Slice = self.CuteSlice(row_start, col_start, row_end, col_end,slice_array)
-                self.CheckSlice(Slice)
-                self.AddSlicetoPlate(Slice)
+        for i in range(1,self.max_cells+1):
+            for row in range(self.Pizza.width):
+                for col in range(self.Pizza.height):
+                    row_start = row - i
+                    col_start = col - i
+                    row_end = row + i
+                    col_end = col + i
+                    if col_end > self.Pizza.width:
+                        col_end = self.Pizza.width - 1
+                    if row_end >  self.Pizza.height:
+                        row_end = self.Pizza.height - 1
+                    if row_start < 0:
+                        row_start = 0
+                    if row_end < 0:
+                        row_end = 0
+                    slice_array = pizza[row_start:row_end,col_start:col_end]
+
+                    if slice_array.shape[1] == 0:
+                        continue
+                    slice_tmp = Slice(row_start, col_start, row_end, col_end, slice_array)
+                    response, dico_bool = self.Checkconstraint(slice_tmp)
+                    if not response:
+                        del slice_tmp
+                    else:
+                        slice = self.CuteSlice(row_start, col_start, row_end, col_end, slice_array)
+                        self.CheckSlice(slice)
+                        self.AddSlicetoPlate(slice)
 
         pass
 
@@ -154,7 +176,7 @@ class Pizzaiolo():
 
 
 def AmazingPizza():
-    filename = 'files/input/medium.in'
+    filename = 'files/input/small.in'
     pizza, height, width,min_ings, max_cells = read_input_file(filename)
     pizza = Pizza(pizza,height, width)
     print_matrix(pizza.pizza)
